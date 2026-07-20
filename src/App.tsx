@@ -779,25 +779,25 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#000204] text-[#FDFDFF] font-sans selection:bg-[#C0FF38]/20 selection:text-white">
       {/* Navigation Header: Branding & Global Stats */}
       <nav className="h-20 border-b border-white/5 bg-[#000204]/90 sticky top-0 z-50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-9 h-9 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(192,255,56,0.15)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            <div className="w-9 h-9 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(192,255,56,0.15)] flex-shrink-0">
               <Dragon className="w-5 h-5 text-[#C0FF38] animate-pulse" />
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-wider text-[#FDFDFF] uppercase font-display">
+              <h1 className="text-sm sm:text-lg font-black tracking-wider text-[#FDFDFF] uppercase font-display">
                 Raiku <span className="text-[#C0FF38]">Quiz</span> Event
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-full">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-full flex-shrink-0">
               <div className="w-1.5 h-1.5 bg-[#C0FF38] rounded-full animate-ping"></div>
-              <span className="text-[10px] font-mono font-black text-[#C0FF38] uppercase tracking-wider">LIVE SYNC ACTIVE</span>
+              <span className="text-[10px] font-mono font-black text-[#C0FF38] uppercase tracking-wider flex-shrink-0">LIVE SYNC ACTIVE</span>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {role !== 'welcome' && (
                 <button
                   onClick={() => {
@@ -807,20 +807,28 @@ export default function App() {
                       handleLeaveQuiz();
                     }
                   }}
-                  className="px-3.5 py-2 bg-[#C0FF38]/10 hover:bg-[#C0FF38]/25 text-[#C0FF38] hover:text-white border border-[#C0FF38]/30 text-[10px] font-black font-mono uppercase rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_2px_8px_rgba(192,255,56,0.1)] active:scale-[0.98]"
+                  className="px-3 py-2 sm:px-3.5 bg-[#C0FF38]/10 hover:bg-[#C0FF38]/25 text-[#C0FF38] hover:text-white border border-[#C0FF38]/30 text-[10px] font-black font-mono uppercase rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_2px_8px_rgba(192,255,56,0.1)] active:scale-[0.98]"
                   title={role === 'admin' ? "Switch between Host/Admin View and Contestant View in this tab" : "Leave this quiz"}
                 >
-                  <Zap className="w-3 h-3" />
+                  <Zap className="w-3 h-3 flex-shrink-0" />
                   <span>
-                    {role === 'admin'
-                      ? (isAdminPreview ? 'Admin Panel' : 'Contestant View')
-                      : 'Leave Quiz'}
+                    {role === 'admin' ? (
+                      <>
+                        <span className="hidden sm:inline">{isAdminPreview ? 'Admin Panel' : 'Contestant View'}</span>
+                        <span className="inline sm:hidden">{isAdminPreview ? 'Admin' : 'Contestant'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Leave Quiz</span>
+                        <span className="inline sm:hidden">Leave</span>
+                      </>
+                    )}
                   </span>
                 </button>
               )}
               <button
                 onClick={handleToggleTheme}
-                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-slate-200 transition-colors cursor-pointer flex-shrink-0"
                 title="Toggle Theme Mode"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -831,7 +839,7 @@ export default function App() {
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {role === 'welcome' && (
           <JoinModal
             initialCode={quizState.code}
@@ -884,7 +892,7 @@ export default function App() {
 
       {/* Footer: Clean branding */}
       <footer className="bg-[#000204] border-t border-white/5 py-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[10px] font-mono tracking-wider uppercase text-slate-500">
             &copy; 2026 Raiku. All rights reserved.
           </div>
