@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand: #C0FF38;
+  --color-brand-bg: #000204;
+  --color-brand-fg: #FDFDFF;
+  
+  --color-brand-card-dark: #0A0E12;
+  --color-brand-border-dark: rgba(192, 255, 56, 0.12);
+  --color-brand-input-dark: #040608;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000204;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(192, 255, 56, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(192, 255, 56, 0.4);
+}
+
+/* Base resets & high-end typography rules */
+body {
+  background-color: #000204;
+  color: #FDFDFF;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dynamic theme classes that we apply systematically to prevent styled component mismatch */
+[data-theme="light"] {
+  background-color: #FDFDFF !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] body {
+  background-color: #FDFDFF !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] .min-h-screen {
+  background-color: #FDFDFF !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] nav {
+  background-color: #FFFFFF !important;
+  border-bottom-color: rgba(0, 2, 4, 0.08) !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] nav h1 {
+  color: #000204 !important;
+}
+
+/* Cards & panels override for light mode */
+[data-theme="light"] .bg-\[\#0A0A0B\], 
+[data-theme="light"] .bg-brand-card-dark,
+[data-theme="light"] .bg-\[\#0A0D10\] {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0, 2, 4, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 2, 4, 0.03) !important;
+}
+
+[data-theme="light"] .bg-\[\#050505\],
+[data-theme="light"] .bg-brand-input-dark,
+[data-theme="light"] .bg-\[\#040608\] {
+  background-color: #F4F6F9 !important;
+  border-color: rgba(0, 2, 4, 0.08) !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(0, 2, 4, 0.03) !important;
+  border-color: rgba(0, 2, 4, 0.08) !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 2, 4, 0.06) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.02\] {
+  background-color: rgba(0, 2, 4, 0.01) !important;
+}
+
+[data-theme="light"] .border-white\/10 {
+  border-color: rgba(0, 2, 4, 0.08) !important;
+}
+
+[data-theme="light"] .border-white\/5 {
+  border-color: rgba(0, 2, 4, 0.04) !important;
+}
+
+/* Light theme text mappings to keep correct contrast */
+[data-theme="light"] .text-slate-100 {
+  color: #000204 !important;
+}
+
+[data-theme="light"] .text-slate-300 {
+  color: #2D3748 !important;
+}
+
+[data-theme="light"] .text-slate-400 {
+  color: #4A5568 !important;
+}
+
+[data-theme="light"] .text-slate-500 {
+  color: #718096 !important;
+}
+
+[data-theme="light"] .text-slate-600 {
+  color: #4A5568 !important;
+}
+
+[data-theme="light"] .text-white {
+  color: #000204 !important;
+}
+
+[data-theme="light"] .text-\[\#A78BFA\] {
+  color: #000204 !important;
+}
+
+[data-theme="light"] .text-[#C0FF38] {
+  color: #000204 !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover {
+  background-color: rgba(0, 2, 4, 0.02) !important;
+}
+
+[data-theme="light"] .bg-\[\#050505\]\/40 {
+  background-color: rgba(0, 2, 4, 0.02) !important;
+}
+
+[data-theme="light"] .bg-\[\#050505\]\/20 {
+  background-color: rgba(0, 2, 4, 0.01) !important;
+}
+
+[data-theme="light"] input {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0, 2, 4, 0.15) !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] input::placeholder {
+  color: #A0AEC0 !important;
+}
+
+[data-theme="light"] select {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0, 2, 4, 0.15) !important;
+  color: #000204 !important;
+}
+
+[data-theme="light"] footer {
+  background-color: #FDFDFF !important;
+  border-top-color: rgba(0, 2, 4, 0.06) !important;
+}
+
+[data-theme="light"] .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  color: #047857 !important;
+}
+
+[data-theme="light"] .text-emerald-400 {
+  color: #059669 !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Raiku Quiz Event",
+  "description": "Real-time synchronized live event quiz platform for Raiku events.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
