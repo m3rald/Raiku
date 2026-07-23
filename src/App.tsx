@@ -753,7 +753,7 @@ export default function App() {
       });
       if (res.ok) {
         setParticipants((prev) => {
-          const existing = prev[nick] || { nickname: nick, score: 0, lastActive: Date.now() };
+          const existing = prev[nick] || { nickname: nick, score: 0, joinedAt: Date.now(), lastActive: Date.now() };
           const updated = {
             ...prev,
             [nick]: {
