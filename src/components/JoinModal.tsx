@@ -24,12 +24,7 @@ export const JoinModal: React.FC<JoinModalProps> = ({
       return;
     }
     const params = new URLSearchParams(window.location.search);
-    let inviteCode = params.get('invite');
-    if (!inviteCode && window.location.hash.includes('?')) {
-      const hashQuery = window.location.hash.split('?')[1];
-      const hashParams = new URLSearchParams(hashQuery);
-      inviteCode = hashParams.get('invite');
-    }
+    const inviteCode = params.get('invite');
     if (inviteCode) {
       setCode(inviteCode.trim().toUpperCase());
     }
@@ -52,18 +47,12 @@ export const JoinModal: React.FC<JoinModalProps> = ({
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    const rawCode = code.trim().toUpperCase();
-    let finalNick = nickname.trim();
-
-    if (finalNick && !finalNick.startsWith('@')) {
-      finalNick = '@' + finalNick;
-    }
-
-    if (!rawCode || !finalNick || finalNick === '@') {
-      alert('Please provide both the invite code and your Discord username.');
+    const finalNick = nickname.trim();
+    if (!code.trim() || !finalNick || finalNick === '@') {
+      alert('Please provide both the 6-character invite code and your Discord username.');
       return;
     }
-    onJoinAsParticipant(rawCode, finalNick);
+    onJoinAsParticipant(code.trim().toUpperCase(), finalNick);
   };
 
   const handleAdminLoginSubmit = (e: React.FormEvent) => {
@@ -110,7 +99,7 @@ export const JoinModal: React.FC<JoinModalProps> = ({
               </label>
               <input
                 type="text"
-                maxLength={20}
+                maxLength={6}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="e.g. RAIKU7"

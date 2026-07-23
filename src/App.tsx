@@ -30,9 +30,6 @@ const STORAGE_ADMIN_ROLE_KEY = 'raiku_v2_role';
 const STORAGE_PART_NICK_KEY = 'raiku_v2_part_nick';
 const STORAGE_PART_CODE_KEY = 'raiku_v2_part_code';
 
-const rawApiBase = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_BASE) || (typeof window !== 'undefined' ? window.location.origin : '');
-const API_BASE = rawApiBase.replace(/\/+$/, '');
-
 export default function App() {
   const [role, setRole] = useState<'welcome' | 'admin' | 'participant'>('welcome');
   const [isAdminPreview, setIsAdminPreview] = useState(false);
@@ -100,12 +97,7 @@ export default function App() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    let inviteCode = params.get('invite')?.trim().toUpperCase();
-    if (!inviteCode && window.location.hash.includes('?')) {
-      const hashQuery = window.location.hash.split('?')[1];
-      const hashParams = new URLSearchParams(hashQuery);
-      inviteCode = hashParams.get('invite')?.trim().toUpperCase();
-    }
+    const inviteCode = params.get('invite')?.trim().toUpperCase();
 
     if (inviteCode) {
       const savedRole = localStorage.getItem(STORAGE_ADMIN_ROLE_KEY);
@@ -136,6 +128,10 @@ export default function App() {
         setQuizState((prev) => ({
           ...prev,
           code: inviteCode,
+          status: 'waiting',
+          currentQuestionIndex: -1,
+          questionStartTime: null,
+          shuffleMap: [],
         }));
       } else {
         // Clear old storage and go to welcome screen with this invite code
@@ -181,6 +177,10 @@ export default function App() {
           setQuizState((prev) => ({
             ...prev,
             code: savedCode,
+            status: 'waiting',
+            currentQuestionIndex: -1,
+            questionStartTime: null,
+            shuffleMap: [],
           }));
         }
       }
@@ -211,8 +211,7 @@ export default function App() {
   // Helper to push immediate admin updates
   const pushAdminUpdate = async (nextState: QuizState, nextParticipants: Record<string, Participant>) => {
     try {
-      const cleanCode = encodeURIComponent(nextState.code.trim().toUpperCase());
-      await fetch(`${API_BASE}/api/room/${cleanCode}/admin-update`, {
+      await fetch(`/api/room/${nextState.code}/admin-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -232,9 +231,11 @@ export default function App() {
     if (role === 'participant' && quizState.code) {
       const poll = async () => {
         try {
-          const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-          const res = await fetch(`${API_BASE}/api/room/${cleanCode}`);
+          const res = await fetch(`/api/room/${quizState.code}`);
           if (!res.ok) {
+            if (res.status === 404) {
+              handleForceEject();
+            }
             return;
           }
 
@@ -247,15 +248,11 @@ export default function App() {
 
           setQuizState(data.state);
           setQuestions(getQuestionsForQuiz(data.state.category, data.state.difficulty || 'easy'));
-          setParticipants(data.participants || {});
+          setParticipants(data.participants);
 
-          // Heartbeat / Re-sync if participant is missing on server
-          if (nickname && data.participants && !data.participants[nickname]) {
-            fetch(`${API_BASE}/api/room/${cleanCode}/join`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nickname }),
-            }).catch(console.error);
+          // Ejection detection: if they joined but are no longer in the participant list, force eject
+          if (nickname && !data.participants[nickname]) {
+            handleForceEject();
           }
         } catch (err) {
           console.error("Error polling room state:", err);
@@ -263,7 +260,7 @@ export default function App() {
       };
 
       poll();
-      interval = setInterval(poll, 250);
+      interval = setInterval(poll, 400);
     }
 
     return () => {
@@ -278,8 +275,7 @@ export default function App() {
     if (role === 'admin' && quizState.code) {
       const syncAdmin = async () => {
         try {
-          const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-          const res = await fetch(`${API_BASE}/api/room/${cleanCode}`);
+          const res = await fetch(`/api/room/${quizState.code}`);
 
           if (res.ok) {
             const data = await res.json();
@@ -306,7 +302,7 @@ export default function App() {
       };
 
       syncAdmin();
-      interval = setInterval(syncAdmin, 250);
+      interval = setInterval(syncAdmin, 400);
     }
 
     return () => {
@@ -353,18 +349,15 @@ export default function App() {
     } else if (quizState.status === 'active' && quizState.questionStartTime) {
       // Active question timer loop:
       // - 5 seconds reading prep (for hard mode only)
-      // - 15 seconds active answering window
+      // - 10 seconds active answering window
       // - 5 seconds correct answer display/reveal window
-      // - Total duration: 20s (normal) or 25s (hard)
+      // - After 15s (normal) or 20s (hard), automatically progress to the next question!
       timer = setInterval(() => {
         const elapsed = getAdjustedNow() - (quizState.questionStartTime || 0);
 
         if (role === 'admin') {
           const isHardMode = quizState.difficulty === 'hard';
-          const readingDuration = isHardMode ? 5000 : 0;
-          const answeringDuration = 15000;
-          const revealDuration = 5000;
-          const totalDuration = readingDuration + answeringDuration + revealDuration;
+          const totalDuration = isHardMode ? 20000 : 15000;
 
           if (elapsed >= totalDuration) {
             clearInterval(timer);
@@ -456,29 +449,16 @@ export default function App() {
 
   // Entering as Participant (Registers dynamically on the server)
   const handleJoinAsParticipant = async (code: string, nick: string) => {
-    const cleanCode = code.trim().toUpperCase();
-    const cleanNick = nick.trim();
-
-    if (!cleanCode || !cleanNick || cleanNick === '@') {
-      alert("Please provide both the invite code and your Discord username.");
-      return;
-    }
-
     try {
-      const encodedCode = encodeURIComponent(cleanCode);
-      const res = await fetch(`${API_BASE}/api/room/${encodedCode}/join`, {
+      const res = await fetch(`/api/room/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: cleanNick }),
+        body: JSON.stringify({ nickname: nick }),
       });
 
       if (!res.ok) {
-        let errorMsg = 'Failed to join the room.';
-        try {
-          const errData = await res.json();
-          errorMsg = errData.error || errorMsg;
-        } catch (_) {}
-        alert(errorMsg);
+        const errData = await res.json();
+        alert(errData.error || 'Failed to join the room.');
         return;
       }
 
@@ -486,19 +466,19 @@ export default function App() {
       if (data.serverTime) {
         updateClockOffset(data.serverTime - Date.now());
       }
-      setNickname(cleanNick);
+      setNickname(nick);
       setQuizState(data.state);
       setQuestions(getQuestionsForQuiz(data.state.category, data.state.difficulty || 'easy'));
-      setParticipants(data.participants || {});
+      setParticipants(data.participants);
       setRole('participant');
 
       // Save to local storage
       localStorage.setItem(STORAGE_ADMIN_ROLE_KEY, 'participant');
-      localStorage.setItem(STORAGE_PART_NICK_KEY, cleanNick);
-      localStorage.setItem(STORAGE_PART_CODE_KEY, cleanCode);
+      localStorage.setItem(STORAGE_PART_NICK_KEY, nick);
+      localStorage.setItem(STORAGE_PART_CODE_KEY, code);
     } catch (err) {
       console.error("Failed to join room:", err);
-      alert("Network connection issue. Please verify the invite code and try again.");
+      alert("Failed to connect to the server. Check your network or try again.");
     }
   };
 
@@ -538,7 +518,7 @@ export default function App() {
 
     // Instantly register or update this room with the backend server
     try {
-      const res = await fetch(`${API_BASE}/api/room/${nextState.code}/admin-update`, {
+      const res = await fetch(`/api/room/${nextState.code}/admin-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -584,6 +564,14 @@ export default function App() {
             questionStartTime: null,
             shuffleMap: [],
           };
+          // Reset all participants' scores to 0 for a fresh round of the selected quiz/difficulty
+          for (const nick in updatedParticipants) {
+            updatedParticipants[nick] = {
+              ...updatedParticipants[nick],
+              score: 0,
+              lastActive: Date.now(),
+            };
+          }
         }
       }
 
@@ -675,12 +663,24 @@ export default function App() {
       shuffleMap: [],
     };
 
+    // Reset all participants' scores to 0 so they can play again
+    const updatedParticipants = { ...participants };
+    for (const nick in updatedParticipants) {
+      updatedParticipants[nick] = {
+        ...updatedParticipants[nick],
+        score: 0,
+        lastActive: Date.now(),
+      };
+    }
+
+    setParticipants(updatedParticipants);
     setQuizState(resetState);
     localStorage.setItem(STORAGE_ADMIN_STATE_KEY, JSON.stringify(resetState));
+    localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updatedParticipants));
     localStorage.removeItem(STORAGE_ADMIN_ROLE_KEY); // Log out the Admin
     setRole('welcome');
 
-    pushAdminUpdate(resetState, participants);
+    pushAdminUpdate(resetState, updatedParticipants);
   };
 
   // Admin: Reset entire session back to waiting/setup configuration (keeping admin logged in)
@@ -693,17 +693,27 @@ export default function App() {
       shuffleMap: [],
     };
 
+    const updatedParticipants = { ...participants };
+    for (const nick in updatedParticipants) {
+      updatedParticipants[nick] = {
+        ...updatedParticipants[nick],
+        score: 0,
+        lastActive: Date.now(),
+      };
+    }
+
+    setParticipants(updatedParticipants);
     setQuizState(resetState);
     localStorage.setItem(STORAGE_ADMIN_STATE_KEY, JSON.stringify(resetState));
+    localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updatedParticipants));
 
-    pushAdminUpdate(resetState, participants);
+    pushAdminUpdate(resetState, updatedParticipants);
   };
 
   // Admin: Eject specific player
   const handleEjectParticipant = async (nick: string) => {
     try {
-      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-      await fetch(`${API_BASE}/api/room/${cleanCode}/eject`, {
+      await fetch(`/api/room/${quizState.code}/eject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nickname: nick }),
@@ -723,8 +733,7 @@ export default function App() {
   // Admin: Clear Leaderboard
   const handleClearLeaderboard = async () => {
     try {
-      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-      await fetch(`${API_BASE}/api/room/${cleanCode}/clear-leaderboard`, {
+      await fetch(`/api/room/${quizState.code}/clear-leaderboard`, {
         method: 'POST',
       });
     } catch (err) {
@@ -737,36 +746,28 @@ export default function App() {
 
   // (handleAddMockParticipants removed as per user guidelines)
 
-  // Participant / Admin: Submit score answer
-  const handleParticipantSubmitScore = async (newScore: number, targetNickname?: string) => {
-    const nick = targetNickname || nickname;
-    if (!nick) return;
-
+  // Participant: Submit score answer
+  const handleParticipantSubmitScore = async (newScore: number) => {
     try {
-      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-      const res = await fetch(`${API_BASE}/api/room/${cleanCode}/submit-answer`, {
+      const res = await fetch(`/api/room/${quizState.code}/submit-answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nickname: nick,
+          nickname: nickname,
           score: newScore,
         }),
       });
       if (res.ok) {
         setParticipants((prev) => {
-          const existing = prev[nick] || { nickname: nick, score: 0, joinedAt: Date.now(), lastActive: Date.now() };
-          const updated = {
+          if (!prev[nickname]) return prev;
+          return {
             ...prev,
-            [nick]: {
-              ...existing,
-              score: Math.max(existing.score || 0, newScore),
+            [nickname]: {
+              ...prev[nickname],
+              score: newScore,
               lastActive: Date.now(),
             },
           };
-          if (role === 'admin') {
-            localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updated));
-          }
-          return updated;
         });
       }
     } catch (err) {
@@ -854,9 +855,9 @@ export default function App() {
               questions={questions}
               nickname="Admin (Host)"
               onLeaveQuiz={() => setIsAdminPreview(false)}
-              onSubmitScore={(s) => handleParticipantSubmitScore(s, "Admin (Host)")}
+              onSubmitScore={() => {}}
               clockOffset={clockOffset}
-              score={participants["Admin (Host)"]?.score || 0}
+              score={0}
             />
           ) : (
             <AdminPanel

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import { 
   Clock, LogOut, Award, CheckCircle2, XCircle, 
   Sparkles, Flame, User, AlertCircle 
@@ -46,111 +45,36 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
 
   const currentTime = Date.now() + clockOffset;
 
-  // Function to fire celebratory confetti burst
-  const fireConfetti = () => {
-    // Center cannon burst
-    confetti({
-      particleCount: 80,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
-    });
-
-    // Secondary animated side cannons burst
-    const duration = 2000;
-    const animationEnd = Date.now() + duration;
-
-    const frame = () => {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.7 },
-        colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.7 },
-        colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
-      });
-
-      if (Date.now() < animationEnd) {
-        requestAnimationFrame(frame);
-      }
-    };
-
-    frame();
-  };
-
-  // Trigger confetti when quiz state transitions to 'completed'
+  // Sync with prop score when updated by parent/admin (e.g., on reset)
   useEffect(() => {
-    if (quizState.status === 'completed') {
-      fireConfetti();
+    setSubmittedScore(score);
+  }, [score]);
+
+  // Reset applied question index when session is reset
+  useEffect(() => {
+    if (quizState.status === 'waiting' || quizState.status === 'lobby') {
+      setScoreAppliedQuestionIndex(-1);
     }
   }, [quizState.status]);
-
-  // Ref to track scored question indices per session
-  const scoredQuestionIndicesRef = useRef<Set<number>>(new Set());
-
-  // Sync with prop score when updated by parent/admin/server
-  useEffect(() => {
-    if (typeof score === 'number') {
-      if (quizState.status === 'waiting' || quizState.status === 'lobby') {
-        setSubmittedScore(score);
-      } else {
-        setSubmittedScore((prev) => Math.max(prev, score));
-      }
-    }
-  }, [score, quizState.status]);
-
-  // Reset active question tracking state when session/question index resets
-  useEffect(() => {
-    if (quizState.status === 'waiting' || quizState.status === 'lobby' || quizState.currentQuestionIndex === -1) {
-      scoredQuestionIndicesRef.current.clear();
-      setPointsAwarded(null);
-      setSelectedDisplayIndex(null);
-      setAnsweredIndex(null);
-      setPendingPoints(null);
-      setScoreAppliedQuestionIndex(-1);
-      prevQuestionIndexRef.current = -1;
-    }
-  }, [quizState.status, quizState.currentQuestionIndex]);
 
   // Detect when the question changes
   useEffect(() => {
     if (quizState.currentQuestionIndex !== prevQuestionIndexRef.current) {
-      const prevIndex = prevQuestionIndexRef.current;
-      
-      // If previous question was active (>= 0) and not scored yet, apply pending points before resetting
-      if (prevIndex >= 0 && !scoredQuestionIndicesRef.current.has(prevIndex)) {
-        scoredQuestionIndicesRef.current.add(prevIndex);
-        if (pendingPoints !== null && pendingPoints > 0) {
-          setSubmittedScore((prev) => {
-            const nextTotal = prev + pendingPoints;
-            onSubmitScore(nextTotal);
-            return nextTotal;
-          });
-        }
-      }
-
       setSelectedDisplayIndex(null);
       setPointsAwarded(null);
       setAnsweredIndex(null);
       setPendingPoints(null);
       prevQuestionIndexRef.current = quizState.currentQuestionIndex;
     }
-  }, [quizState.currentQuestionIndex, pendingPoints, onSubmitScore]);
+  }, [quizState.currentQuestionIndex]);
 
   const currentQuestion = questions[quizState.currentQuestionIndex];
 
   // Calculate timer values
   const isHardMode = quizState.difficulty === 'hard';
   const readingDuration = isHardMode ? 5000 : 0;
-  const answeringDuration = 15000; // 15 seconds active answering
-  const revealDuration = 5000; // 5 seconds answer reveal window
-  const totalDuration = readingDuration + answeringDuration + revealDuration;
+  const answeringDuration = 15000; // 15 seconds (+5 seconds added)
+  const totalDuration = isHardMode ? 25000 : 20000;
 
   let remainingTime = 0;
   let progress = 0;
@@ -179,29 +103,21 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
   const isReadingTime = quizState.status === 'active' && isHardMode && elapsed < readingDuration;
   const isTimeUp = quizState.status === 'active' && quizState.questionStartTime ? elapsed >= (readingDuration + answeringDuration) : false;
 
-  // Apply the pending points once the answering countdown finishes and reveal phase starts
+  // Apply the pending points once the answering countdown finishes
   useEffect(() => {
-    const qIndex = quizState.currentQuestionIndex;
-    if (isTimeUp && qIndex >= 0 && !scoredQuestionIndicesRef.current.has(qIndex)) {
-      scoredQuestionIndicesRef.current.add(qIndex);
-      const points = pendingPoints !== null ? pendingPoints : 0;
-      setPointsAwarded(points);
-      setScoreAppliedQuestionIndex(qIndex);
-
-      if (points > 0) {
-        setSubmittedScore((prev) => {
-          const newTotal = prev + points;
-          onSubmitScore(newTotal);
-          return newTotal;
-        });
+    if (isTimeUp && quizState.currentQuestionIndex !== -1 && quizState.currentQuestionIndex !== scoreAppliedQuestionIndex) {
+      if (pendingPoints !== null) {
+        const newTotalScore = submittedScore + pendingPoints;
+        setSubmittedScore(newTotalScore);
+        setPointsAwarded(pendingPoints);
+        onSubmitScore(newTotalScore);
       } else {
-        setSubmittedScore((prev) => {
-          onSubmitScore(prev);
-          return prev;
-        });
+        setPointsAwarded(0);
+        onSubmitScore(submittedScore);
       }
+      setScoreAppliedQuestionIndex(quizState.currentQuestionIndex);
     }
-  }, [isTimeUp, quizState.currentQuestionIndex, pendingPoints, onSubmitScore]);
+  }, [isTimeUp, quizState.currentQuestionIndex, scoreAppliedQuestionIndex, pendingPoints, submittedScore, onSubmitScore]);
 
   // SVG parameters for countdown circle
   const radius = 54;
@@ -210,8 +126,9 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
 
   // Handle option selection
   const handleSelectOption = (displayIndex: number, originalIndex: number) => {
-    if (!quizState.questionStartTime || !currentQuestion) return;
-    const clickTime = Date.now() + clockOffset;
+    // If already answered, or time is up, or options aren't reflected yet, do nothing
+    if (!quizState.questionStartTime) return;
+    const clickTime = Date.now();
     const currentElapsed = clickTime - quizState.questionStartTime;
 
     // In hard mode, clicking options during reading time is not allowed
@@ -225,8 +142,8 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
     
     let gainedPoints = 0;
     if (isCorrect) {
-      // 100 max points, decreases down to 10 points at 15 seconds of answering
-      const answeringElapsed = Math.max(0, currentElapsed - readingDuration);
+      // 100 max points, decreases down to 10 points at 10 seconds of answering
+      const answeringElapsed = currentElapsed - readingDuration;
       gainedPoints = Math.max(10, Math.round(100 - (answeringElapsed / answeringDuration) * 90));
     }
 
@@ -313,8 +230,6 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
 
   // Render Quiz Finished / Leaderboard Screen
   if (quizState.status === 'completed') {
-    const userHandle = nickname.startsWith('@') ? nickname : `@${nickname}`;
-
     return (
       <div className="max-w-md mx-auto px-6 py-12 text-center space-y-8 animate-fade-in">
         <div className="w-20 h-20 mx-auto bg-[#C0FF38]/10 border border-[#C0FF38]/30 rounded-full flex items-center justify-center text-[#C0FF38] shadow-[0_0_20px_rgba(192,255,56,0.15)]">
@@ -322,9 +237,7 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-white uppercase tracking-tight break-words">
-            Quiz Finished <span className="text-[#C0FF38]">{userHandle}</span>!
-          </h2>
+          <h2 className="font-display text-3xl font-black text-white uppercase tracking-tight">Quiz Finished!</h2>
           <p className="text-xs text-slate-400">Great effort! Here is your final performance record.</p>
         </div>
 
@@ -338,17 +251,10 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
           </div>
         </div>
 
-        <div className="pt-4 flex flex-col gap-3">
-          <button
-            onClick={fireConfetti}
-            className="w-full py-3.5 bg-[#C0FF38] hover:bg-[#b0f025] text-[#000204] font-black rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(192,255,56,0.3)] active:scale-[0.98]"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Celebrate Again 🎉</span>
-          </button>
+        <div className="pt-4 flex flex-col gap-2">
           <button
             onClick={onLeaveQuiz}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
+            className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
           >
             Return to Home
           </button>
@@ -464,10 +370,7 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {((quizState.shuffleMap && quizState.shuffleMap.length === currentQuestion.options.length) 
-                ? quizState.shuffleMap 
-                : currentQuestion.options.map((_, i) => i)
-              ).map((originalIndex, displayIndex) => {
+              {quizState.shuffleMap.map((originalIndex, displayIndex) => {
                 const optionLetter = String.fromCharCode(65 + displayIndex);
                 const optionText = currentQuestion.options[originalIndex];
 
@@ -475,13 +378,14 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
                 const isCorrectOption = originalIndex === currentQuestion.correct;
 
                 // Compute color classes based on states
-                let optionClass = 'bg-[#040608] border-white/10 hover:border-[#C0FF38]/40 hover:bg-white/[0.02] text-slate-200 cursor-pointer';
-                let badgeClass = 'bg-[#0A0E12] border-white/10 text-slate-400 font-mono';
+                let optionClass = 'bg-[#040608] border-white/10 hover:border-white/20 text-slate-300';
+                let badgeClass = 'bg-[#0A0E12] border-white/10 text-slate-500';
 
                 if (selectedDisplayIndex !== null) {
+                  // User has answered, but we are still waiting for time to run out
                   if (isSelected) {
-                    optionClass = 'bg-[#C0FF38]/10 border-[#C0FF38] text-[#C0FF38] shadow-[0_0_15px_rgba(192,255,56,0.15)] font-semibold';
-                    badgeClass = 'bg-[#C0FF38] border-[#C0FF38] text-[#000204] font-bold';
+                    optionClass = 'bg-[#C0FF38]/10 border-[#C0FF38]/40 text-[#C0FF38]';
+                    badgeClass = 'bg-[#C0FF38]/20 border-[#C0FF38]/30 text-[#C0FF38] font-bold';
                   } else {
                     optionClass = 'bg-[#040608]/40 border-white/5 text-slate-600 cursor-not-allowed opacity-40';
                     badgeClass = 'bg-[#040608] border-white/5 text-slate-700';
@@ -491,13 +395,13 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
                 // Time is up -> reveal correct/incorrect options
                 if (isTimeUp) {
                   if (isCorrectOption) {
-                    optionClass = 'bg-emerald-950/60 border-emerald-400 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.25)] font-bold ring-2 ring-emerald-500/50';
-                    badgeClass = 'bg-emerald-500 border-emerald-400 text-[#000204] font-black';
+                    optionClass = 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200';
+                    badgeClass = 'bg-emerald-950 border-emerald-500/40 text-emerald-400 font-bold';
                   } else if (isSelected) {
-                    optionClass = 'bg-rose-950/60 border-rose-500 text-rose-200 shadow-[0_0_15px_rgba(244,63,94,0.2)] font-semibold';
-                    badgeClass = 'bg-rose-500 border-rose-400 text-white font-bold';
+                    optionClass = 'bg-rose-950/40 border-rose-500/50 text-rose-200';
+                    badgeClass = 'bg-rose-950 border-rose-500/40 text-rose-400 font-bold';
                   } else {
-                    optionClass = 'bg-[#040608]/20 border-white/5 text-slate-600 opacity-25 cursor-not-allowed';
+                    optionClass = 'bg-[#040608]/20 border-white/5 text-slate-600 opacity-20';
                     badgeClass = 'bg-[#040608] border-white/5 text-slate-800';
                   }
                 }
@@ -507,25 +411,19 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
                     key={displayIndex}
                     disabled={selectedDisplayIndex !== null || isTimeUp}
                     onClick={() => handleSelectOption(displayIndex, originalIndex)}
-                    className={`p-4.5 rounded-xl border text-left flex items-center gap-4 transition-all duration-200 w-full active:scale-[0.99] ${optionClass}`}
+                    className={`p-4.5 rounded-xl border text-left flex items-center gap-4 transition-all duration-200 w-full active:scale-[0.99] cursor-pointer ${optionClass}`}
                   >
                     <div className={`w-8 h-8 flex items-center justify-center font-mono font-bold text-xs rounded-lg border flex-shrink-0 transition-colors ${badgeClass}`}>
                       {optionLetter}
                     </div>
-                    <div className="flex-1 font-medium text-sm sm:text-base">{optionText}</div>
+                    <div className="flex-1 font-medium text-sm">{optionText}</div>
                     
                     {/* Icon indicators */}
                     {isTimeUp && isCorrectOption && (
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-xs font-bold bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex-shrink-0 animate-pulse">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span className="hidden sm:inline">CORRECT</span>
-                      </div>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                     )}
                     {isTimeUp && isSelected && !isCorrectOption && (
-                      <div className="flex items-center gap-1.5 text-rose-400 font-mono text-xs font-bold bg-rose-500/10 border border-rose-500/30 px-2.5 py-1 rounded-lg flex-shrink-0">
-                        <XCircle className="w-4 h-4 text-rose-400" />
-                        <span className="hidden sm:inline">YOUR CHOICE</span>
-                      </div>
+                      <XCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
                     )}
                   </button>
                 );
@@ -534,42 +432,30 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
           )}
 
           {/* Points Status Summary */}
-          <div className="p-4 bg-[#0A0E12] border border-white/10 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-2.5">
+          <div className="p-4 bg-[#0A0E12] border border-white/10 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <Award className="w-5 h-5 text-[#C0FF38]" />
-              <p className="text-xs text-slate-300 font-mono uppercase tracking-wider">
-                CUMULATIVE SCORE: <span className="text-[#C0FF38] font-black text-sm tabular-nums">{submittedScore} pts</span>
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
+                SCORE: <span className="text-[#C0FF38] font-extrabold text-xs tabular-nums">{submittedScore} pts</span>
               </p>
             </div>
 
-            <div className="text-right">
-              {isTimeUp ? (
-                pointsAwarded !== null && pointsAwarded > 0 ? (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 font-bold text-xs uppercase font-mono animate-bounce shadow-sm">
-                    <Sparkles className="w-4 h-4 text-emerald-400" />
-                    <span>+{pointsAwarded} PTS AWARDED!</span>
-                  </div>
-                ) : selectedDisplayIndex !== null ? (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-500/15 border border-rose-500/30 rounded-lg text-rose-300 font-bold text-xs uppercase font-mono">
-                    <XCircle className="w-4 h-4 text-rose-400" />
-                    <span>INCORRECT (+0 PTS)</span>
-                  </div>
+            {selectedDisplayIndex !== null && (
+              <div className="text-right">
+                {isTimeUp ? (
+                  pointsAwarded && pointsAwarded > 0 ? (
+                    <p className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 animate-pulse font-mono uppercase">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>+{pointsAwarded} pts awarded</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-bold text-rose-400 font-mono uppercase tracking-wider">Incorrect option</p>
+                  )
                 ) : (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-300 font-bold text-xs uppercase font-mono">
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                    <span>TIME EXPIRED (+0 PTS)</span>
-                  </div>
-                )
-              ) : selectedDisplayIndex !== null ? (
-                <p className="text-xs text-[#C0FF38] font-bold animate-pulse font-mono uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Answer locked! Reveal coming soon...
-                </p>
-              ) : (
-                <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">
-                  Select an answer before time expires
-                </p>
-              )}
-            </div>
+                  <p className="text-[10px] text-[#C0FF38] font-semibold animate-pulse font-mono uppercase tracking-wider">Answer locked. Checking speed...</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
