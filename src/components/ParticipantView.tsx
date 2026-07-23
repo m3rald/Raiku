@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import { 
   Clock, LogOut, Award, CheckCircle2, XCircle, 
   Sparkles, Flame, User, AlertCircle 
@@ -44,6 +45,51 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
   }, []);
 
   const currentTime = Date.now() + clockOffset;
+
+  // Function to fire celebratory confetti burst
+  const fireConfetti = () => {
+    // Center cannon burst
+    confetti({
+      particleCount: 80,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
+    });
+
+    // Secondary animated side cannons burst
+    const duration = 2000;
+    const animationEnd = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#C0FF38', '#ffffff', '#38bdf8', '#f43f5e', '#a855f7'],
+      });
+
+      if (Date.now() < animationEnd) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+  };
+
+  // Trigger confetti when quiz state transitions to 'completed'
+  useEffect(() => {
+    if (quizState.status === 'completed') {
+      fireConfetti();
+    }
+  }, [quizState.status]);
 
   // Sync with prop score when updated by parent/admin (e.g., on reset)
   useEffect(() => {
@@ -251,10 +297,17 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
           </div>
         </div>
 
-        <div className="pt-4 flex flex-col gap-2">
+        <div className="pt-4 flex flex-col gap-3">
+          <button
+            onClick={fireConfetti}
+            className="w-full py-3.5 bg-[#C0FF38] hover:bg-[#b0f025] text-[#000204] font-black rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(192,255,56,0.3)] active:scale-[0.98]"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Celebrate Again 🎉</span>
+          </button>
           <button
             onClick={onLeaveQuiz}
-            className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
+            className="w-full py-3 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl font-bold transition-all cursor-pointer text-xs uppercase tracking-wider"
           >
             Return to Home
           </button>
