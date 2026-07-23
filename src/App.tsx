@@ -30,6 +30,8 @@ const STORAGE_ADMIN_ROLE_KEY = 'raiku_v2_role';
 const STORAGE_PART_NICK_KEY = 'raiku_v2_part_nick';
 const STORAGE_PART_CODE_KEY = 'raiku_v2_part_code';
 
+const API_BASE = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_BASE) || (typeof window !== 'undefined' ? window.location.origin : '');
+
 export default function App() {
   const [role, setRole] = useState<'welcome' | 'admin' | 'participant'>('welcome');
   const [isAdminPreview, setIsAdminPreview] = useState(false);
@@ -458,7 +460,7 @@ export default function App() {
 
     try {
       const encodedCode = encodeURIComponent(cleanCode);
-      const res = await fetch(`/api/room/${encodedCode}/join`, {
+      const res = await fetch(`${API_BASE}/api/room/${encodedCode}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nickname: cleanNick }),
