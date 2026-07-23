@@ -121,28 +121,18 @@ app.post("/api/room/:code/admin-update", (req, res) => {
   };
   room.lastUpdated = Date.now();
 
-  // If admin sent a master participants list, merge safely without downgrading participant scores
-  if (participants) {
-    const isExplicitReset = Object.keys(participants).length === 0;
-
-    if (isExplicitReset) {
-      room.participants = {};
-    } else {
-      const merged: Record<string, Participant> = { ...room.participants };
-      
-      for (const nick in participants) {
-        if (merged[nick]) {
-          merged[nick] = {
-            ...merged[nick],
-            ...participants[nick],
-            score: Math.max(merged[nick].score || 0, participants[nick].score || 0),
-          };
-        } else {
-          merged[nick] = participants[nick];
-        }
+  // Merge participants safely without wiping server participants when admin state is updated
+  if (participants && typeof participants === "object") {
+    for (const nick in participants) {
+      if (room.participants[nick]) {
+        room.participants[nick] = {
+          ...room.participants[nick],
+          ...participants[nick],
+          score: Math.max(room.participants[nick].score || 0, participants[nick].score || 0),
+        };
+      } else {
+        room.participants[nick] = participants[nick];
       }
-
-      room.participants = merged;
     }
   }
 
@@ -159,15 +149,16 @@ app.post("/api/room/:code/join", (req, res) => {
   const code = (req.params.code || "").trim().toUpperCase();
   const { nickname } = req.body || {};
 
-  if (!nickname) {
+  if (!nickname || typeof nickname !== "string" || !nickname.trim()) {
     return res.status(400).json({ error: "Discord Username is required." });
   }
 
+  const cleanNick = nickname.trim();
   const room = getOrCreateRoom(code);
 
   // If participant already exists, allow reconnect/heartbeat regardless of allowNewParticipants flag
-  if (room.participants && room.participants[nickname]) {
-    room.participants[nickname].lastActive = Date.now();
+  if (room.participants && room.participants[cleanNick]) {
+    room.participants[cleanNick].lastActive = Date.now();
     room.lastUpdated = Date.now();
     return res.json({
       success: true,
@@ -183,8 +174,8 @@ app.post("/api/room/:code/join", (req, res) => {
   }
 
   // Register new participant
-  room.participants[nickname] = {
-    nickname,
+  room.participants[cleanNick] = {
+    nickname: cleanNick,
     score: 0,
     joinedAt: Date.now(),
     lastActive: Date.now(),

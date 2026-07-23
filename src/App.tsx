@@ -30,7 +30,8 @@ const STORAGE_ADMIN_ROLE_KEY = 'raiku_v2_role';
 const STORAGE_PART_NICK_KEY = 'raiku_v2_part_nick';
 const STORAGE_PART_CODE_KEY = 'raiku_v2_part_code';
 
-const API_BASE = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_BASE) || (typeof window !== 'undefined' ? window.location.origin : '');
+const rawApiBase = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_BASE) || (typeof window !== 'undefined' ? window.location.origin : '');
+const API_BASE = rawApiBase.replace(/\/+$/, '');
 
 export default function App() {
   const [role, setRole] = useState<'welcome' | 'admin' | 'participant'>('welcome');
@@ -537,7 +538,7 @@ export default function App() {
 
     // Instantly register or update this room with the backend server
     try {
-      const res = await fetch(`/api/room/${nextState.code}/admin-update`, {
+      const res = await fetch(`${API_BASE}/api/room/${nextState.code}/admin-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
