@@ -225,9 +225,6 @@ export default function App() {
         try {
           const res = await fetch(`/api/room/${quizState.code}`);
           if (!res.ok) {
-            if (res.status === 404) {
-              handleForceEject();
-            }
             return;
           }
 
@@ -240,11 +237,22 @@ export default function App() {
 
           setQuizState(data.state);
           setQuestions(getQuestionsForQuiz(data.state.category, data.state.difficulty || 'easy'));
-          setParticipants(data.participants);
+          setParticipants(data.participants || {});
 
-          // Ejection detection: if they joined but are no longer in the participant list, force eject
-          if (nickname && !data.participants[nickname]) {
-            handleForceEject();
+          // If participant is missing from server's list, attempt silent re-join
+          if (nickname && data.participants && !data.participants[nickname]) {
+            fetch(`/api/room/${quizState.code}/join`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nickname }),
+            })
+              .then(async (joinRes) => {
+                if (joinRes.status === 403) {
+                  // Closed by host or ejected
+                  handleForceEject();
+                }
+              })
+              .catch(console.error);
           }
         } catch (err) {
           console.error("Error polling room state:", err);
@@ -252,7 +260,7 @@ export default function App() {
       };
 
       poll();
-      interval = setInterval(poll, 400);
+      interval = setInterval(poll, 250);
     }
 
     return () => {
@@ -294,7 +302,7 @@ export default function App() {
       };
 
       syncAdmin();
-      interval = setInterval(syncAdmin, 400);
+      interval = setInterval(syncAdmin, 250);
     }
 
     return () => {

@@ -58,13 +58,33 @@ setInterval(() => {
 
 // API Endpoints
 
+// Helper to get or create room safely
+function getOrCreateRoom(code: string): Room {
+  const cleanCode = code.trim().toUpperCase();
+  if (!rooms[cleanCode]) {
+    rooms[cleanCode] = {
+      state: {
+        code: cleanCode,
+        category: "raiku",
+        difficulty: "easy",
+        status: "waiting",
+        currentQuestionIndex: -1,
+        lobbyTimeLeft: 10,
+        questionStartTime: null,
+        shuffleMap: [],
+        allowNewParticipants: true,
+      },
+      participants: {},
+      lastUpdated: Date.now(),
+    };
+  }
+  return rooms[cleanCode];
+}
+
 // 1. Get entire Room state (Admin and Participant polling)
 app.get("/api/room/:code", (req, res) => {
   const code = req.params.code.toUpperCase();
-  const room = rooms[code];
-  if (!room) {
-    return res.status(404).json({ error: "Quiz session not found." });
-  }
+  const room = getOrCreateRoom(code);
   res.json({
     state: room.state,
     participants: room.participants,
@@ -81,47 +101,45 @@ app.post("/api/room/:code/admin-update", (req, res) => {
     return res.status(400).json({ error: "Missing state data." });
   }
 
-  if (!rooms[code]) {
-    rooms[code] = {
-      state,
-      participants: participants || {},
-      lastUpdated: Date.now(),
-    };
-  } else {
-    // Update general quiz status
-    rooms[code].state = state;
-    rooms[code].lastUpdated = Date.now();
+  const room = getOrCreateRoom(code);
 
-    // If admin sent a master participants list, merge safely without downgrading participant scores
-    if (participants) {
-      const isExplicitReset = Object.keys(participants).length === 0;
+  // Update general quiz state safely
+  room.state = {
+    ...room.state,
+    ...state,
+    code,
+  };
+  room.lastUpdated = Date.now();
 
-      if (isExplicitReset) {
-        rooms[code].participants = {};
-      } else {
-        const merged: Record<string, Participant> = { ...rooms[code].participants };
-        
-        for (const nick in participants) {
-          if (merged[nick]) {
-            merged[nick] = {
-              ...merged[nick],
-              ...participants[nick],
-              score: Math.max(merged[nick].score || 0, participants[nick].score || 0),
-            };
-          } else {
-            merged[nick] = participants[nick];
-          }
+  // If admin sent a master participants list, merge safely without downgrading participant scores
+  if (participants) {
+    const isExplicitReset = Object.keys(participants).length === 0;
+
+    if (isExplicitReset) {
+      room.participants = {};
+    } else {
+      const merged: Record<string, Participant> = { ...room.participants };
+      
+      for (const nick in participants) {
+        if (merged[nick]) {
+          merged[nick] = {
+            ...merged[nick],
+            ...participants[nick],
+            score: Math.max(merged[nick].score || 0, participants[nick].score || 0),
+          };
+        } else {
+          merged[nick] = participants[nick];
         }
-
-        rooms[code].participants = merged;
       }
+
+      room.participants = merged;
     }
   }
 
   res.json({
     success: true,
-    state: rooms[code].state,
-    participants: rooms[code].participants,
+    state: room.state,
+    participants: room.participants,
     serverTime: Date.now(),
   });
 });
@@ -135,10 +153,7 @@ app.post("/api/room/:code/join", (req, res) => {
     return res.status(400).json({ error: "Nickname is required." });
   }
 
-  const room = rooms[code];
-  if (!room) {
-    return res.status(404).json({ error: "Quiz session not found. Check the invite code!" });
-  }
+  const room = getOrCreateRoom(code);
 
   if (!room.state.allowNewParticipants) {
     return res.status(403).json({ error: "Joining is currently closed by the host." });
@@ -172,10 +187,7 @@ app.post("/api/room/:code/submit-answer", (req, res) => {
   const code = req.params.code.toUpperCase();
   const { nickname, score } = req.body;
 
-  const room = rooms[code];
-  if (!room) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const room = getOrCreateRoom(code);
 
   if (room.participants[nickname]) {
     room.participants[nickname].score = Math.max(
@@ -183,6 +195,13 @@ app.post("/api/room/:code/submit-answer", (req, res) => {
       typeof score === 'number' ? score : 0
     );
     room.participants[nickname].lastActive = Date.now();
+  } else if (nickname) {
+    room.participants[nickname] = {
+      nickname,
+      score: typeof score === 'number' ? score : 0,
+      joinedAt: Date.now(),
+      lastActive: Date.now(),
+    };
   }
 
   room.lastUpdated = Date.now();
