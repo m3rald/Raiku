@@ -99,7 +99,12 @@ export default function App() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite')?.trim().toUpperCase();
+    let inviteCode = params.get('invite')?.trim().toUpperCase();
+    if (!inviteCode && window.location.hash.includes('?')) {
+      const hashQuery = window.location.hash.split('?')[1];
+      const hashParams = new URLSearchParams(hashQuery);
+      inviteCode = hashParams.get('invite')?.trim().toUpperCase();
+    }
 
     if (inviteCode) {
       const savedRole = localStorage.getItem(STORAGE_ADMIN_ROLE_KEY);
@@ -206,7 +211,7 @@ export default function App() {
   const pushAdminUpdate = async (nextState: QuizState, nextParticipants: Record<string, Participant>) => {
     try {
       const cleanCode = encodeURIComponent(nextState.code.trim().toUpperCase());
-      await fetch(`/api/room/${cleanCode}/admin-update`, {
+      await fetch(`${API_BASE}/api/room/${cleanCode}/admin-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -227,7 +232,7 @@ export default function App() {
       const poll = async () => {
         try {
           const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-          const res = await fetch(`/api/room/${cleanCode}`);
+          const res = await fetch(`${API_BASE}/api/room/${cleanCode}`);
           if (!res.ok) {
             return;
           }
@@ -245,7 +250,7 @@ export default function App() {
 
           // Heartbeat / Re-sync if participant is missing on server
           if (nickname && data.participants && !data.participants[nickname]) {
-            fetch(`/api/room/${cleanCode}/join`, {
+            fetch(`${API_BASE}/api/room/${cleanCode}/join`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ nickname }),
@@ -273,7 +278,7 @@ export default function App() {
       const syncAdmin = async () => {
         try {
           const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-          const res = await fetch(`/api/room/${cleanCode}`);
+          const res = await fetch(`${API_BASE}/api/room/${cleanCode}`);
 
           if (res.ok) {
             const data = await res.json();
@@ -696,7 +701,8 @@ export default function App() {
   // Admin: Eject specific player
   const handleEjectParticipant = async (nick: string) => {
     try {
-      await fetch(`/api/room/${quizState.code}/eject`, {
+      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
+      await fetch(`${API_BASE}/api/room/${cleanCode}/eject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nickname: nick }),
@@ -717,7 +723,7 @@ export default function App() {
   const handleClearLeaderboard = async () => {
     try {
       const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-      await fetch(`/api/room/${cleanCode}/clear-leaderboard`, {
+      await fetch(`${API_BASE}/api/room/${cleanCode}/clear-leaderboard`, {
         method: 'POST',
       });
     } catch (err) {
@@ -737,7 +743,7 @@ export default function App() {
 
     try {
       const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
-      const res = await fetch(`/api/room/${cleanCode}/submit-answer`, {
+      const res = await fetch(`${API_BASE}/api/room/${cleanCode}/submit-answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
