@@ -135,36 +135,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="space-y-8 animate-fade-in" id="admin-panel">
       {/* Top Banner Info */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-[#0A0E12] border border-[#C0FF38]/12 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-[#0A0E12] border border-[#C0FF38]/12 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-xl text-[#C0FF38] flex-shrink-0">
+          <div className="p-3 bg-[#C0FF38]/10 border border-[#C0FF38]/20 rounded-xl text-[#C0FF38]">
             <Shield className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="font-display text-xl md:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-2">
-              <span>ADMIN CONTROL</span> <span className="text-[#C0FF38] text-[9px] font-mono bg-[#C0FF38]/10 px-2 py-0.5 rounded-md border border-[#C0FF38]/20 font-black uppercase">CONSOLE</span>
+            <h1 className="font-display text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              ADMIN CONTROL <span className="text-[#C0FF38] text-[9px] font-mono bg-[#C0FF38]/10 px-2 py-0.5 rounded-md border border-[#C0FF38]/20 font-black uppercase">CONSOLE</span>
             </h1>
-            <div className="text-slate-400 text-[11px] mt-1.5 font-mono uppercase tracking-wider flex flex-wrap gap-x-3 gap-y-1">
-              <span>SESSION: <span className="text-[#C0FF38] font-bold">{quizState.code}</span></span>
-              <span className="text-slate-700 hidden sm:inline">|</span>
-              <span>CATEGORY: <span className="font-bold text-white">{quizState.category}</span></span>
-              <span className="text-slate-700 hidden sm:inline">|</span>
-              <span>DIFFICULTY: <span className="font-bold text-[#C0FF38]">{quizState.difficulty || 'easy'}</span></span>
-            </div>
+            <p className="text-slate-400 text-[11px] mt-1 font-mono uppercase tracking-wider">
+              SESSION: <span className="text-[#C0FF38] font-bold">{quizState.code}</span> // CATEGORY:{" "}
+              <span className="font-bold text-white">{quizState.category}</span> // DIFFICULTY:{" "}
+              <span className="font-bold text-[#C0FF38]">{quizState.difficulty || 'easy'}</span>
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+        <div className="flex items-center gap-3">
           <button
             onClick={onResetSession}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl transition-all cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
             <span>Reset Quiz</span>
           </button>
           <button
             onClick={onEndGame}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl transition-all cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>End Session</span>
@@ -180,7 +178,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <Zap className="w-4 h-4 text-[#C0FF38]" /> Session Controls
             </h2>
 
-             {/* Category Select */}
+            {/* Category Select */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-widest uppercase text-slate-500 font-mono">
                 Quiz Category
@@ -189,7 +187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 disabled={quizState.status !== 'waiting' && quizState.status !== 'completed'}
                 value={quizState.category}
                 onChange={(e) => onUpdateState({ category: e.target.value })}
-                className="w-full bg-[#040608] border border-white/10 focus:border-[#C0FF38] text-slate-200 rounded-xl px-4 py-3 text-base sm:text-xs outline-none transition-all disabled:opacity-50 cursor-pointer font-medium"
+                className="w-full bg-[#040608] border border-white/10 focus:border-[#C0FF38] text-slate-200 rounded-xl px-4 py-3 text-xs outline-none transition-all disabled:opacity-50 cursor-pointer font-medium"
               >
                 <option value="raiku">Solana & Raiku (Official Docs)</option>
                 <option value="football">Football / Sports Trivia</option>
@@ -208,7 +206,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 disabled={quizState.status !== 'waiting' && quizState.status !== 'completed'}
                 value={quizState.difficulty || 'easy'}
                 onChange={(e) => onUpdateState({ difficulty: e.target.value as any })}
-                className="w-full bg-[#040608] border border-white/10 focus:border-[#C0FF38] text-slate-200 rounded-xl px-4 py-3 text-base sm:text-xs outline-none transition-all disabled:opacity-50 cursor-pointer font-medium"
+                className="w-full bg-[#040608] border border-white/10 focus:border-[#C0FF38] text-slate-200 rounded-xl px-4 py-3 text-xs outline-none transition-all disabled:opacity-50 cursor-pointer font-medium"
               >
                 <option value="easy">Easy Mode (First 4 Qs)</option>
                 <option value="intermediate">Intermediate Mode (Middle 3 Qs)</option>
@@ -478,23 +476,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
             </div>
 
-             {/* Quick Metrics */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6">
-              <div className="p-2.5 sm:p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
                 <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase font-mono">Joined</p>
-                <p className="font-display text-xl sm:text-2xl font-bold text-white mt-1 tabular-nums">{totalParticipants}</p>
+                <p className="font-display text-2xl font-bold text-white mt-1 tabular-nums">{totalParticipants}</p>
               </div>
-              <div className="p-2.5 sm:p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
+              <div className="p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
                 <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase font-mono">Progress</p>
-                <p className="font-display text-xl sm:text-2xl font-bold text-white mt-1 tabular-nums">
+                <p className="font-display text-2xl font-bold text-white mt-1 tabular-nums">
                   {quizState.status === 'waiting'
                     ? `0/${questions.length}`
                     : `${quizState.currentQuestionIndex + 1}/${questions.length}`}
                 </p>
               </div>
-              <div className="p-2.5 sm:p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
+              <div className="p-4 bg-[#050505] border border-white/10 rounded-xl text-center">
                 <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase font-mono">Avg Score</p>
-                <p className="font-display text-xl sm:text-2xl font-bold text-white mt-1 tabular-nums">{avgScore} pts</p>
+                <p className="font-display text-2xl font-bold text-white mt-1 tabular-nums">{avgScore} pts</p>
               </div>
             </div>
           </div>
@@ -511,7 +509,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <p className="text-xs text-slate-500 mt-0.5 font-mono">Real-time ranking of joined contestants</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <div className="flex items-center gap-2.5">
                 <button
                   disabled={participantList.length === 0}
                   onClick={handleExportCSV}
@@ -543,10 +541,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-white/10 text-slate-500 font-mono text-[10px] uppercase tracking-widest">
-                      <th className="py-3 px-2 sm:px-4 font-bold">Rank</th>
-                      <th className="py-3 px-2 sm:px-4 font-bold">Discord Username</th>
-                      <th className="py-3 px-2 sm:px-4 font-bold text-right">Score</th>
-                      <th className="py-3 px-2 sm:px-4 font-bold text-right">Actions</th>
+                      <th className="py-3 px-4 font-bold">Rank</th>
+                      <th className="py-3 px-4 font-bold">Discord Username</th>
+                      <th className="py-3 px-4 font-bold text-right">Score</th>
+                      <th className="py-3 px-4 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -560,22 +558,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                       return (
                         <tr key={nick} className="hover:bg-white/[0.02] transition-all">
-                          <td className="py-4 px-2 sm:px-4 font-mono font-bold">
+                          <td className="py-4 px-4 font-mono font-bold">
                             {isTop3 ? (
                               <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border font-bold text-xs ${rankColors[idx]}`}>
                                 {idx + 1}
                               </span>
                             ) : (
-                              <span className="text-slate-600 pl-2">{idx + 1}</span>
+                              <span className="text-slate-600 pl-2.5">{idx + 1}</span>
                             )}
                           </td>
-                          <td className="py-4 px-2 sm:px-4">
-                            <span className="font-semibold text-slate-100 font-mono truncate max-w-[120px] sm:max-w-none block">{nick.startsWith('@') ? nick : `@${nick}`}</span>
+                          <td className="py-4 px-4">
+                            <span className="font-semibold text-slate-100 font-mono">{nick.startsWith('@') ? nick : `@${nick}`}</span>
                           </td>
-                          <td className="py-4 px-2 sm:px-4 text-right font-display font-extrabold text-emerald-400 text-base tabular-nums">
+                          <td className="py-4 px-4 text-right font-display font-extrabold text-emerald-400 text-base tabular-nums">
                             {p.score} <span className="text-[10px] text-slate-500 font-normal">pts</span>
                           </td>
-                          <td className="py-4 px-2 sm:px-4 text-right">
+                          <td className="py-4 px-4 text-right">
                             <button
                               onClick={() => onEjectParticipant(nick)}
                               title={`Eject ${nick}`}

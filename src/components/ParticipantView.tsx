@@ -264,29 +264,27 @@ export const ParticipantView: React.FC<ParticipantViewProps> = ({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto px-4 py-6 sm:py-8 animate-fade-in">
+    <div className="space-y-6 max-w-2xl mx-auto px-4 py-8 animate-fade-in">
       {/* Top Header / Stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 bg-[#C0FF38] rounded-full animate-ping flex-shrink-0" />
+            <div className="w-2 h-2 bg-[#C0FF38] rounded-full animate-ping" />
             <p className="text-xs font-bold text-slate-300">
               Contestant: <span className="text-white font-mono">{nickname.startsWith('@') ? nickname : `@${nickname}`}</span>
             </p>
           </div>
-          <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1">
-            <span>CATEGORY: <span className="text-slate-300 font-bold">{quizState.category}</span></span>
-            <span className="text-slate-700 hidden sm:inline">|</span>
-            <span>DIFFICULTY: <span className="text-[#C0FF38] font-bold">{quizState.difficulty || 'easy'}</span></span>
-          </div>
+          <p className="text-[10px] text-slate-500 font-mono">
+            CATEGORY: <span className="text-slate-300 uppercase">{quizState.category}</span> // DIFFICULTY: <span className="text-[#C0FF38] uppercase font-bold">{quizState.difficulty || 'easy'}</span>
+          </p>
         </div>
 
         <button
           onClick={handleConfirmLeave}
-          className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-red-400 rounded-xl text-xs font-semibold transition-all cursor-pointer font-mono uppercase tracking-wider"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-red-400 rounded-xl text-xs font-semibold transition-all cursor-pointer font-mono uppercase tracking-wider"
         >
           <LogOut className="w-3.5 h-3.5" />
-          <span>Leave Arena</span>
+          <span>Leave</span>
         </button>
       </div>
 
