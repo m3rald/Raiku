@@ -203,7 +203,8 @@ export default function App() {
   // Helper to push immediate admin updates
   const pushAdminUpdate = async (nextState: QuizState, nextParticipants: Record<string, Participant>) => {
     try {
-      await fetch(`/api/room/${nextState.code}/admin-update`, {
+      const cleanCode = encodeURIComponent(nextState.code.trim().toUpperCase());
+      await fetch(`/api/room/${cleanCode}/admin-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +224,8 @@ export default function App() {
     if (role === 'participant' && quizState.code) {
       const poll = async () => {
         try {
-          const res = await fetch(`/api/room/${quizState.code}`);
+          const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
+          const res = await fetch(`/api/room/${cleanCode}`);
           if (!res.ok) {
             return;
           }
@@ -239,20 +241,13 @@ export default function App() {
           setQuestions(getQuestionsForQuiz(data.state.category, data.state.difficulty || 'easy'));
           setParticipants(data.participants || {});
 
-          // If participant is missing from server's list, attempt silent re-join
+          // Heartbeat / Re-sync if participant is missing on server
           if (nickname && data.participants && !data.participants[nickname]) {
-            fetch(`/api/room/${quizState.code}/join`, {
+            fetch(`/api/room/${cleanCode}/join`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ nickname }),
-            })
-              .then(async (joinRes) => {
-                if (joinRes.status === 403) {
-                  // Closed by host or ejected
-                  handleForceEject();
-                }
-              })
-              .catch(console.error);
+            }).catch(console.error);
           }
         } catch (err) {
           console.error("Error polling room state:", err);
@@ -275,7 +270,8 @@ export default function App() {
     if (role === 'admin' && quizState.code) {
       const syncAdmin = async () => {
         try {
-          const res = await fetch(`/api/room/${quizState.code}`);
+          const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
+          const res = await fetch(`/api/room/${cleanCode}`);
 
           if (res.ok) {
             const data = await res.json();
@@ -452,16 +448,29 @@ export default function App() {
 
   // Entering as Participant (Registers dynamically on the server)
   const handleJoinAsParticipant = async (code: string, nick: string) => {
+    const cleanCode = code.trim().toUpperCase();
+    const cleanNick = nick.trim();
+
+    if (!cleanCode || !cleanNick || cleanNick === '@') {
+      alert("Please provide both the invite code and your Discord username.");
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/room/${code}/join`, {
+      const encodedCode = encodeURIComponent(cleanCode);
+      const res = await fetch(`/api/room/${encodedCode}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: nick }),
+        body: JSON.stringify({ nickname: cleanNick }),
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        alert(errData.error || 'Failed to join the room.');
+        let errorMsg = 'Failed to join the room.';
+        try {
+          const errData = await res.json();
+          errorMsg = errData.error || errorMsg;
+        } catch (_) {}
+        alert(errorMsg);
         return;
       }
 
@@ -469,19 +478,19 @@ export default function App() {
       if (data.serverTime) {
         updateClockOffset(data.serverTime - Date.now());
       }
-      setNickname(nick);
+      setNickname(cleanNick);
       setQuizState(data.state);
       setQuestions(getQuestionsForQuiz(data.state.category, data.state.difficulty || 'easy'));
-      setParticipants(data.participants);
+      setParticipants(data.participants || {});
       setRole('participant');
 
       // Save to local storage
       localStorage.setItem(STORAGE_ADMIN_ROLE_KEY, 'participant');
-      localStorage.setItem(STORAGE_PART_NICK_KEY, nick);
-      localStorage.setItem(STORAGE_PART_CODE_KEY, code);
+      localStorage.setItem(STORAGE_PART_NICK_KEY, cleanNick);
+      localStorage.setItem(STORAGE_PART_CODE_KEY, cleanCode);
     } catch (err) {
       console.error("Failed to join room:", err);
-      alert("Failed to connect to the server. Check your network or try again.");
+      alert("Network connection issue. Please verify the invite code and try again.");
     }
   };
 
@@ -705,7 +714,8 @@ export default function App() {
   // Admin: Clear Leaderboard
   const handleClearLeaderboard = async () => {
     try {
-      await fetch(`/api/room/${quizState.code}/clear-leaderboard`, {
+      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
+      await fetch(`/api/room/${cleanCode}/clear-leaderboard`, {
         method: 'POST',
       });
     } catch (err) {
@@ -724,7 +734,8 @@ export default function App() {
     if (!nick) return;
 
     try {
-      const res = await fetch(`/api/room/${quizState.code}/submit-answer`, {
+      const cleanCode = encodeURIComponent(quizState.code.trim().toUpperCase());
+      const res = await fetch(`/api/room/${cleanCode}/submit-answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

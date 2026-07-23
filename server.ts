@@ -39,15 +39,15 @@ const rooms: Record<string, Room> = {};
 setInterval(() => {
   const now = Date.now();
   for (const code in rooms) {
-    // If no activity for 3 hours, delete the room
-    if (now - rooms[code].lastUpdated > 3 * 60 * 60 * 1000) {
+    // If no activity for 6 hours, delete the room
+    if (now - rooms[code].lastUpdated > 6 * 60 * 60 * 1000) {
       delete rooms[code];
     } else {
-      // Remove participants inactive for 10 minutes (unless in waiting mode)
+      // Remove participants inactive for 20 minutes (unless in waiting mode)
       const room = rooms[code];
       if (room.state.status !== "waiting") {
         for (const nick in room.participants) {
-          if (now - room.participants[nick].lastActive > 10 * 60 * 1000) {
+          if (now - room.participants[nick].lastActive > 20 * 60 * 1000) {
             delete room.participants[nick];
           }
         }
@@ -83,7 +83,7 @@ function getOrCreateRoom(code: string): Room {
 
 // 1. Get entire Room state (Admin and Participant polling)
 app.get("/api/room/:code", (req, res) => {
-  const code = req.params.code.toUpperCase();
+  const code = (req.params.code || "").trim().toUpperCase();
   const room = getOrCreateRoom(code);
   res.json({
     state: room.state,
@@ -94,8 +94,8 @@ app.get("/api/room/:code", (req, res) => {
 
 // 2. Admin creates or updates the room state
 app.post("/api/room/:code/admin-update", (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const { state, participants } = req.body;
+  const code = (req.params.code || "").trim().toUpperCase();
+  const { state, participants } = req.body || {};
 
   if (!state) {
     return res.status(400).json({ error: "Missing state data." });
@@ -146,31 +146,39 @@ app.post("/api/room/:code/admin-update", (req, res) => {
 
 // 3. Participant Joins Room
 app.post("/api/room/:code/join", (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const { nickname } = req.body;
+  const code = (req.params.code || "").trim().toUpperCase();
+  const { nickname } = req.body || {};
 
   if (!nickname) {
-    return res.status(400).json({ error: "Nickname is required." });
+    return res.status(400).json({ error: "Discord Username is required." });
   }
 
   const room = getOrCreateRoom(code);
 
-  if (!room.state.allowNewParticipants) {
-    return res.status(403).json({ error: "Joining is currently closed by the host." });
+  // If participant already exists, allow reconnect/heartbeat regardless of allowNewParticipants flag
+  if (room.participants && room.participants[nickname]) {
+    room.participants[nickname].lastActive = Date.now();
+    room.lastUpdated = Date.now();
+    return res.json({
+      success: true,
+      state: room.state,
+      participants: room.participants,
+      serverTime: Date.now(),
+    });
   }
 
-  // Register participant
-  if (!room.participants[nickname]) {
-    room.participants[nickname] = {
-      nickname,
-      score: 0,
-      joinedAt: Date.now(),
-      lastActive: Date.now(),
-    };
-  } else {
-    // Update active heartbeat
-    room.participants[nickname].lastActive = Date.now();
+  // Only block for NEW participants if host closed joining
+  if (room.state.allowNewParticipants === false) {
+    return res.status(403).json({ error: "Joining is currently closed by the host for this session." });
   }
+
+  // Register new participant
+  room.participants[nickname] = {
+    nickname,
+    score: 0,
+    joinedAt: Date.now(),
+    lastActive: Date.now(),
+  };
 
   room.lastUpdated = Date.now();
 
@@ -184,12 +192,12 @@ app.post("/api/room/:code/join", (req, res) => {
 
 // 4. Participant Submits Answer/Score Update
 app.post("/api/room/:code/submit-answer", (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const { nickname, score } = req.body;
+  const code = (req.params.code || "").trim().toUpperCase();
+  const { nickname, score } = req.body || {};
 
   const room = getOrCreateRoom(code);
 
-  if (room.participants[nickname]) {
+  if (room.participants && room.participants[nickname]) {
     room.participants[nickname].score = Math.max(
       room.participants[nickname].score || 0,
       typeof score === 'number' ? score : 0
@@ -216,11 +224,11 @@ app.post("/api/room/:code/submit-answer", (req, res) => {
 
 // 5. Admin Ejects a Participant
 app.post("/api/room/:code/eject", (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const { nickname } = req.body;
+  const code = (req.params.code || "").trim().toUpperCase();
+  const { nickname } = req.body || {};
 
   const room = rooms[code];
-  if (room && room.participants[nickname]) {
+  if (room && room.participants && room.participants[nickname]) {
     delete room.participants[nickname];
     room.lastUpdated = Date.now();
   }
@@ -233,7 +241,7 @@ app.post("/api/room/:code/eject", (req, res) => {
 
 // 6. Admin Clears Leaderboard
 app.post("/api/room/:code/clear-leaderboard", (req, res) => {
-  const code = req.params.code.toUpperCase();
+  const code = (req.params.code || "").trim().toUpperCase();
   const room = rooms[code];
   if (room) {
     room.participants = {};
