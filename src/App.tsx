@@ -128,10 +128,6 @@ export default function App() {
         setQuizState((prev) => ({
           ...prev,
           code: inviteCode,
-          status: 'waiting',
-          currentQuestionIndex: -1,
-          questionStartTime: null,
-          shuffleMap: [],
         }));
       } else {
         // Clear old storage and go to welcome screen with this invite code
@@ -177,10 +173,6 @@ export default function App() {
           setQuizState((prev) => ({
             ...prev,
             code: savedCode,
-            status: 'waiting',
-            currentQuestionIndex: -1,
-            questionStartTime: null,
-            shuffleMap: [],
           }));
         }
       }
@@ -349,15 +341,18 @@ export default function App() {
     } else if (quizState.status === 'active' && quizState.questionStartTime) {
       // Active question timer loop:
       // - 5 seconds reading prep (for hard mode only)
-      // - 10 seconds active answering window
+      // - 15 seconds active answering window
       // - 5 seconds correct answer display/reveal window
-      // - After 15s (normal) or 20s (hard), automatically progress to the next question!
+      // - Total duration: 20s (normal) or 25s (hard)
       timer = setInterval(() => {
         const elapsed = getAdjustedNow() - (quizState.questionStartTime || 0);
 
         if (role === 'admin') {
           const isHardMode = quizState.difficulty === 'hard';
-          const totalDuration = isHardMode ? 20000 : 15000;
+          const readingDuration = isHardMode ? 5000 : 0;
+          const answeringDuration = 15000;
+          const revealDuration = 5000;
+          const totalDuration = readingDuration + answeringDuration + revealDuration;
 
           if (elapsed >= totalDuration) {
             clearInterval(timer);
@@ -564,14 +559,6 @@ export default function App() {
             questionStartTime: null,
             shuffleMap: [],
           };
-          // Reset all participants' scores to 0 for a fresh round of the selected quiz/difficulty
-          for (const nick in updatedParticipants) {
-            updatedParticipants[nick] = {
-              ...updatedParticipants[nick],
-              score: 0,
-              lastActive: Date.now(),
-            };
-          }
         }
       }
 
@@ -663,24 +650,12 @@ export default function App() {
       shuffleMap: [],
     };
 
-    // Reset all participants' scores to 0 so they can play again
-    const updatedParticipants = { ...participants };
-    for (const nick in updatedParticipants) {
-      updatedParticipants[nick] = {
-        ...updatedParticipants[nick],
-        score: 0,
-        lastActive: Date.now(),
-      };
-    }
-
-    setParticipants(updatedParticipants);
     setQuizState(resetState);
     localStorage.setItem(STORAGE_ADMIN_STATE_KEY, JSON.stringify(resetState));
-    localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updatedParticipants));
     localStorage.removeItem(STORAGE_ADMIN_ROLE_KEY); // Log out the Admin
     setRole('welcome');
 
-    pushAdminUpdate(resetState, updatedParticipants);
+    pushAdminUpdate(resetState, participants);
   };
 
   // Admin: Reset entire session back to waiting/setup configuration (keeping admin logged in)
@@ -693,21 +668,10 @@ export default function App() {
       shuffleMap: [],
     };
 
-    const updatedParticipants = { ...participants };
-    for (const nick in updatedParticipants) {
-      updatedParticipants[nick] = {
-        ...updatedParticipants[nick],
-        score: 0,
-        lastActive: Date.now(),
-      };
-    }
-
-    setParticipants(updatedParticipants);
     setQuizState(resetState);
     localStorage.setItem(STORAGE_ADMIN_STATE_KEY, JSON.stringify(resetState));
-    localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updatedParticipants));
 
-    pushAdminUpdate(resetState, updatedParticipants);
+    pushAdminUpdate(resetState, participants);
   };
 
   // Admin: Eject specific player
@@ -746,28 +710,35 @@ export default function App() {
 
   // (handleAddMockParticipants removed as per user guidelines)
 
-  // Participant: Submit score answer
-  const handleParticipantSubmitScore = async (newScore: number) => {
+  // Participant / Admin: Submit score answer
+  const handleParticipantSubmitScore = async (newScore: number, targetNickname?: string) => {
+    const nick = targetNickname || nickname;
+    if (!nick) return;
+
     try {
       const res = await fetch(`/api/room/${quizState.code}/submit-answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nickname: nickname,
+          nickname: nick,
           score: newScore,
         }),
       });
       if (res.ok) {
         setParticipants((prev) => {
-          if (!prev[nickname]) return prev;
-          return {
+          const existing = prev[nick] || { nickname: nick, score: 0, lastActive: Date.now() };
+          const updated = {
             ...prev,
-            [nickname]: {
-              ...prev[nickname],
-              score: newScore,
+            [nick]: {
+              ...existing,
+              score: Math.max(existing.score || 0, newScore),
               lastActive: Date.now(),
             },
           };
+          if (role === 'admin') {
+            localStorage.setItem(STORAGE_ADMIN_PARTICIPANTS_KEY, JSON.stringify(updated));
+          }
+          return updated;
         });
       }
     } catch (err) {
@@ -855,9 +826,9 @@ export default function App() {
               questions={questions}
               nickname="Admin (Host)"
               onLeaveQuiz={() => setIsAdminPreview(false)}
-              onSubmitScore={() => {}}
+              onSubmitScore={(s) => handleParticipantSubmitScore(s, "Admin (Host)")}
               clockOffset={clockOffset}
-              score={0}
+              score={participants["Admin (Host)"]?.score || 0}
             />
           ) : (
             <AdminPanel

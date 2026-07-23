@@ -92,25 +92,29 @@ app.post("/api/room/:code/admin-update", (req, res) => {
     rooms[code].state = state;
     rooms[code].lastUpdated = Date.now();
 
-    // If admin sent a master participants list (e.g. from direct edits or reset), merge/overwrite safely
+    // If admin sent a master participants list, merge safely without downgrading participant scores
     if (participants) {
-      // Retain newly server-joined participants that might have arrived during the admin's fetch interval
-      const merged: Record<string, Participant> = { ...rooms[code].participants };
-      
-      for (const nick in participants) {
-        // If participant exists locally, sync their score ONLY if resetting (score is 0) or if in waiting/lobby status
-        if (merged[nick]) {
-          if (participants[nick].score === 0 || state.status === "waiting" || state.status === "lobby") {
-            merged[nick].score = participants[nick].score;
-          }
-        } else {
-          // Otherwise adopt the admin's record (e.g., cleared, or mock, or reset)
-          merged[nick] = participants[nick];
-        }
-      }
+      const isExplicitReset = Object.keys(participants).length === 0;
 
-      // Always use the safely merged list to avoid race-condition deletions of newly server-joined participants.
-      rooms[code].participants = merged;
+      if (isExplicitReset) {
+        rooms[code].participants = {};
+      } else {
+        const merged: Record<string, Participant> = { ...rooms[code].participants };
+        
+        for (const nick in participants) {
+          if (merged[nick]) {
+            merged[nick] = {
+              ...merged[nick],
+              ...participants[nick],
+              score: Math.max(merged[nick].score || 0, participants[nick].score || 0),
+            };
+          } else {
+            merged[nick] = participants[nick];
+          }
+        }
+
+        rooms[code].participants = merged;
+      }
     }
   }
 
@@ -174,7 +178,10 @@ app.post("/api/room/:code/submit-answer", (req, res) => {
   }
 
   if (room.participants[nickname]) {
-    room.participants[nickname].score = score;
+    room.participants[nickname].score = Math.max(
+      room.participants[nickname].score || 0,
+      typeof score === 'number' ? score : 0
+    );
     room.participants[nickname].lastActive = Date.now();
   }
 
